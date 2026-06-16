@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDM - Menuiserie de Mekkera | Maintenance Blueprint Hub</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #0b111e; color: #f8fafc; height: 100vh; overflow: hidden; display: flex; }
+        
+        .container { display: flex; width: 100%; height: 100%; }
+        
+        /* Panel Gauche - Plan Interactif Technologique */
+        .map-wrapper { 
+            flex: 2; 
+            background-color: #e2e8f0; /* Fond gris propre d'atelier */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 30px; 
+            border-right: 3px solid #cbd5e1; 
+            position: relative; 
+        }
+        .map-wrapper svg { width: 100%; height: auto; max-height: 92vh; z-index: 2; }
+
+        /* STRUCTURE GENERALE DE L'USINE */
+        svg path, svg use {
+            stroke: #334155 !important; 
+        }
+
+        /* NUMÉROS DES BLOCS (STYLE ET VISIBILITÉ) */
+        svg use {
+            stroke: #1e293b !important; /* Contour foncé pour détacher le chiffre */
+            stroke-width: 15px !important; /* Donne du corps et de l'épaisseur au chiffre */
+            fill: #1e293b !important;
+        }
+
+        /* BLOCS MACHINES INTERACTIFS */
+        svg path[stroke="#000"][stroke-width="2"] {
+            cursor: pointer;
+            fill: transparent !important; 
+            stroke: #475569 !important; /* Bordures charcoal propres */
+            stroke-width: 4px !important;
+            transition: fill 0.15s ease-in-out, stroke 0.15s ease-in-out;
+        }
+        
+        /* EFFET SURVOL (HOVER) - Orange Transparent */
+        svg path[stroke="#000"][stroke-width="2"]:hover {
+            fill: rgba(249, 115, 22, 0.15) !important; 
+            stroke: #f97316 !important;
+            stroke-width: 5px !important;
+        }
+        
+        /* ETAT ACTIF / LOCK AU CLIC - Orange Industriel Solide */
+        svg path[stroke="#000"][stroke-width="2"].selected-machine {
+            fill: #f97316 !important; /* Orange Éclatant MDM */
+            stroke: #fdba74 !important; /* Bordure orange clair */
+            stroke-width: 6px !important;
+            filter: drop-shadow(0px 0px 14px rgba(249, 115, 22, 0.7));
+        }
+
+        /* Quand un bloc est sélectionné, son numéro devient blanc pour un contraste parfait */
+        svg path[stroke="#000"][stroke-width="2"].selected-machine + use {
+            fill: #ffffff !important;
+            stroke: #ffffff !important;
+            stroke-width: 5px !important;
+        }
+
+        /* Panel Droite - Dashboard Technique */
+        .panel-wrapper { flex: 1; padding: 40px; display: flex; flex-direction: column; background-color: #0f172a; border-left: 1px solid #1e293b; overflow-y: auto; }
+        
+        .brand-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; }
+        .brand-logo-text { font-size: 1.4rem; font-weight: 800; color: #ffffff; letter-spacing: 0.05em; }
+        .brand-logo-text span { color: #f97316; } 
+        .brand-badge { font-size: 0.75rem; background: #1e293b; padding: 4px 8px; border-radius: 4px; color: #94a3b8; border: 1px solid #334155; font-weight: 600; }
+        
+        .placeholder-text { margin: auto 0; color: #64748b; text-align: center; font-style: italic; font-size: 1.05rem; line-height: 1.6; }
+        
+        /* Fiche Machine Active */
+        .machine-card { display: none; height: 100%; }
+        .machine-card.active { display: flex; flex-direction: column; animation: slideIn 0.2s ease-out; }
+        
+        /* Container Image Dynamique */
+        .machine-photo-container {
+            width: 100%;
+            height: 200px;
+            background-color: #1e293b;
+            border-radius: 8px;
+            margin-top: 5px;
+            margin-bottom: 25px;
+            border: 1px solid #334155;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .machine-photo { width: 100%; height: 100%; object-fit: cover; }
+        
+        .asset-tag { font-family: monospace; font-size: 0.85rem; color: #f97316; background: rgba(249, 115, 22, 0.1); padding: 4px 10px; border-radius: 4px; align-self: flex-start; margin-bottom: 10px; font-weight: bold; border: 1px solid rgba(249, 115, 22, 0.2); }
+        .asset-title { font-size: 1.8rem; font-weight: 700; color: #ffffff; margin-bottom: 5px; }
+        .asset-dept { font-size: 1rem; color: #94a3b8; margin-bottom: 15px; font-style: italic; }
+        
+        /* Grille des Liens Documentaires */
+        .doc-section-title { font-size: 0.85rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 12px; }
+        .doc-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 25px; }
+        
+        .doc-card { display: flex; align-items: center; background: #1e293b; padding: 16px; border-radius: 8px; text-decoration: none; border: 1px solid #334155; transition: all 0.2s; }
+        .doc-card:hover { background: #273549; border-color: #f97316; transform: translateY(-1px); }
+        
+        .doc-icon { font-size: 1.5rem; margin-right: 15px; color: #94a3b8; }
+        .doc-card:hover .doc-icon { color: #f97316; }
+        
+        .doc-info { display: flex; flex-direction: column; }
+        .doc-name { color: #f8fafc; font-weight: 600; font-size: 0.95rem; }
+        .doc-type { color: #64748b; font-size: 0.8rem; margin-top: 2px; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(15px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="map-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 8330 4911">
+                <g transform="translate(1280.0000000000005 4261)">
+                    <path d="M-1275-3835h630M-1275-3835V645M-1255 645h610M5 645h1910M2565 645h1270M4485 645h2550M5-3835h1910M2565-3835h1270M4485-3835h2550M7045-315v950M321-2875v2230M5445-2245v1600M325 265v380M7045-3045v2400M7045-3835v470M5445-3515v621.62" stroke="#000" stroke-width="10" stroke-linecap="round" fill="none"/>
+                    <path d="M335 325h940M1281 325v304M325-380V0" stroke="#000" stroke-width="10" stroke-linecap="round" fill="none"/>
+                    <path d="M321-2316h154M645-2314h230M1045-2316h230M1045-1435h230M645-1435h230M324-1435h154M1281-2312v871" stroke="#000" stroke-width="10" stroke-linecap="round" fill="none"/>
+                    <path d="M1119-3675v554M715-3675v560M715-3675h400M715-3115h158" stroke="#000" stroke-width="10" stroke-linecap="round" fill="none"/>
+                    <path d="M5445 325h1590M5445 325v314" stroke="#000" stroke-width="10" stroke-linecap="round" fill="none"/>
+
+                    <path id="block-1" d="M-320-2414a6 6 0 0 1 6-6h468a6 6 0 0 1 6 6v808a6 6 0 0 1-6 6h-468a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#a" transform="matrix(0.08,0,0,0.08,-150,-2100)"/>
+                    
+                    <path id="block-2" d="M-1120-2414a6 6 0 0 1 6-6h388a6 6 0 0 1 6 6v348a6 6 0 0 1-6 6h-388a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#b" transform="matrix(0.08,0,0,0.08,-980,-2300)"/>
+                    
+                    <path id="block-3" d="M-1260-3814a6 6 0 0 1 6-6h298a6 6 0 0 1 6 6v218a6 6 0 0 1-6 6h-298a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#c" transform="matrix(0.07,0,0,0.07,-1160,-3750)"/>
+                    
+                    <path id="block-4" d="M-1200-3554a6 6 0 0 1 6-6h113a6 6 0 0 1 6 6v148a6 6 0 0 1-6 6h-113a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#d" transform="matrix(0.06,0,0,0.06,-1170,-3500)"/>
+                    
+                    <path id="block-5" d="M-1120-3255.9a6 6 0 0 1 6-6h421.37a6 6 0 0 1 6 6v127.06a6 6 0 0 1-6 6H-1114a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#e" transform="matrix(0.06,0,0,0.06,-960,-3210)"/>
+                    
+                    <path id="block-6" d="M-640-3475.9a6 6 0 0 1 6-6h421.37a6 6 0 0 1 6 6v127.06a6 6 0 0 1-6 6H-634a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#f" transform="matrix(0.06,0,0,0.06,-480,-3430)"/>
+                    
+                    <path id="block-7" d="M-523.32-3691.16a6 6 0 0 1 6-6h188a6 6 0 0 1 6 6v127.07a6 6 0 0 1-6 6h-188a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#g" transform="matrix(0.06,0,0,0.06,-450,-3650)"/>
+                    
+                    <path id="block-8" d="M5760-2874a6 6 0 0 1 6-6h108a6 6 0 0 1 6 6v465.93a6 6 0 0 1-6 6h-108a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#h" transform="matrix(0.06,0,0,0.06,5775,-2700)"/>
+                    
+                    <path id="block-9" d="M960-3616.38a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v408a6 6 0 0 1-6 6h-68a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#i" transform="matrix(0.06,0,0,0.06,965,-3450)"/>
+                    
+                    <path id="block-10" d="M340-2794a6 6 0 0 1 6-6h112a6 6 0 0 1 6 6v228a6 6 0 0 1-6 6H346a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#j" transform="matrix(0.07,0,0,0.07,360,-2720)"/>
+                    
+                    <path id="block-11" d="M560-2074a6 6 0 0 1 6-6h88a6 6 0 0 1 6 6v568a6 6 0 0 1-6 6h-88a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#k" transform="matrix(0.06,0,0,0.06,570,-1850)"/>
+                    
+                    <path id="block-12" d="M2800-3194a6 6 0 0 1 6-6h388a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6h-388a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#l" transform="matrix(0.08,0,0,0.08,2930,-3090)"/>
+                    
+                    <path id="block-13" d="M403-1994a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v168.4a6 6 0 0 1-6 6h-68a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#m" transform="matrix(0.05,0,0,0.05,405,-1930)"/>
+                    
+                    <path id="block-14" d="M640-1194a6 6 0 0 1 6-6h1108a6 6 0 0 1 6 6v388a6 6 0 0 1-6 6H646a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#n" transform="matrix(0.09,0,0,0.09,1120,-1040)"/>
+                    
+                    <path id="block-15" d="M1120-2074a6 6 0 0 1 6-6h88a6 6 0 0 1 6 6v568a6 6 0 0 1-6 6h-88a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#o" transform="matrix(0.06,0,0,0.06,1130,-1850)"/>
+                    
+                    <path id="block-16" d="M960-1994a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v168.4a6 6 0 0 1-6 6h-68a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#p" transform="matrix(0.05,0,0,0.05,965,-1930)"/>
+                    
+                    <path id="block-17" d="M1120-2274a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v168.4a6 6 0 0 1-6 6h-68a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#q" transform="matrix(0.05,0,0,0.05,1125,-2210)"/>
+                    
+                    <path id="block-18" d="M800-314a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6V-6a6 6 0 0 1-6 6H806a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#r" transform="matrix(0.06,0,0,0.06,825,-180)"/>
+                    
+                    <path id="block-19" d="M2560-634a6 6 0 0 1 6-6h308a6 6 0 0 1 6 6V-6a6 6 0 0 1-6 6h-308a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#s" transform="matrix(0.08,0,0,0.08,2650,-380)"/>
+                    
+                    <path id="block-20" d="M960-2874a6 6 0 0 1 6-6h168a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6H966a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#t" transform="matrix(0.07,0,0,0.07,1000,-2750)"/>
+                    
+                    <path id="block-21" d="M3360-3196.38a6 6 0 0 1 6-6h308a6 6 0 0 1 6 6V-3046a6 6 0 0 1-6 6h-308a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#u" transform="matrix(0.06,0,0,0.06,3460,-3150)"/>
+                    
+                    <path d="M4970-3517.8a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6v245.6a6 6 0 0 1-6 6h-148a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2" id="block-22"/>
+                    <use xlink:href="#v" transform="matrix(0.06,0,0,0.06,5000,-3430)"/>
+                    
+                    <path id="block-23" d="M6880-149a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6V-1a6 6 0 0 1-6 6h-148a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#w" transform="matrix(0.06,0,0,0.06,6900,-100)"/>
+                    
+                    <path id="block-24" d="M5250-469a6 6 0 0 1 6-6h188a6 6 0 0 1 6 6V-1a6 6 0 0 1-6 6h-188a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#x" transform="matrix(0.07,0,0,0.07,5300,-280)"/>
+                    
+                    <path id="block-25" d="M1420-2874a6 6 0 0 1 6-6h168a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6h-168a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#y" transform="matrix(0.07,0,0,0.07,1460,-2750)"/>
+                    
+                    <path id="block-26" d="M1360-2234a6 6 0 0 1 6-6h72.07a6 6 0 0 1 6 6v105.6a6 6 0 0 1-6 6H1366a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#z" transform="matrix(0.05,0,0,0.05,1365,-2200)"/>
+                    
+                    <path id="block-27" d="M1760-1914a6 6 0 0 1 6-6h72.07a6 6 0 0 1 6 6v105.6a6 6 0 0 1-6 6H1766a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#A" transform="matrix(0.05,0,0,0.05,1765,-1880)"/>
+                    
+                    <path id="block-28" d="M1760-1754a6 6 0 0 1 6-6h72.07a6 6 0 0 1 6 6v105.6a6 6 0 0 1-6 6H1766a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#B" transform="matrix(0.05,0,0,0.05,1765,-1720)"/>
+                    
+                    <path id="block-29" d="M1515.93-1696.98a6 6 0 0 1 6-6h72.07a6 6 0 0 1 6 6V-1446a6 6 0 0 1-6 6h-72.07a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#C" transform="matrix(0.05,0,0,0.05,1520,-1600)"/>
+                    
+                    <path id="block-30" d="M6720-2874a6 6 0 0 1 6-6h108a6 6 0 0 1 6 6v465.93a6 6 0 0 1-6 6h-108a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#D" transform="matrix(0.06,0,0,0.06,6735,-2700)"/>
+                    
+                    <path id="block-31" d="M6720-2074a6 6 0 0 1 6-6h108a6 6 0 0 1 6 6v468a6 6 0 0 1-6 6h-108a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#E" transform="matrix(0.06,0,0,0.06,6735,-1900)"/>
+                    
+                    <path id="block-32" d="M4800-3254a6 6 0 0 1 6-6h468a6 6 0 0 1 6 6v428a6 6 0 0 1-6 6h-468a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#F" transform="matrix(0.08,0,0,0.08,4950,-3080)"/>
+                    
+                    <path id="block-33" d="M4970-2807.8a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6v245.6a6 6 0 0 1-6 6h-148a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#G" transform="matrix(0.06,0,0,0.06,5000,-2720)"/>
+                    
+                    <path id="block-34" d="M4970-2251.62a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6V-2006a6 6 0 0 1-6 6h-148a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#H" transform="matrix(0.06,0,0,0.06,5000,-2150)"/>
+                    
+                    <path id="block-35" d="M4800-1976.38a6 6 0 0 1 6-6h318a6 6 0 0 1 6 6v1072.76a6 6 0 0 1-6 6h-318a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#I" transform="matrix(0.08,0,0,0.08,4910,-1500)"/>
+                    
+                    <path id="block-36" d="M4960-874a6 6 0 0 1 6-6h148a6 6 0 0 1 6 6v245.62a6 6 0 0 1-6 6h-148a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#J" transform="matrix(0.06,0,0,0.06,4990,-780)"/>
+                    
+                    <path id="block-37" d="M4160-474a6 6 0 0 1 6-6h188a6 6 0 0 1 6 6V-6a6 6 0 0 1-6 6h-188a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#K" transform="matrix(0.07,0,0,0.07,4210,-280)"/>
+                    
+                    <path id="block-38" d="M0-4254a6 6 0 0 1 6-6h6708a6 6 0 0 1 6 6v255.62a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#L" transform="matrix(0.12,0,0,0.12,3200,-4160)"/>
+                    
+                    <path id="block-39" d="M5450-1274a6 6 0 0 1 6-6h58a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6h-58a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#M" transform="matrix(0.05,0,0,0.05,5455,-1150)"/>
+                    
+                    <path id="block-40" d="M5680-2154a6 6 0 0 1 6-6h68a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6h-68a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#N" transform="matrix(0.05,0,0,0.05,5685,-2030)"/>
+                    
+                    <path id="block-41" d="M6480-3674a6 6 0 0 1 6-6h468a6 6 0 0 1 6 6v308a6 6 0 0 1-6 6h-468a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#O" transform="matrix(0.08,0,0,0.08,6620,-3560)"/>
+                    
+                    <path id="block-42" d="M5450-1594a6 6 0 0 1 6-6h78a6 6 0 0 1 6 6v107.93a6 6 0 0 1-6 6h-78a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#P" transform="matrix(0.04,0,0,0.04,5460,-1560)"/>
+                    
+                    <path id="block-43" d="M5680-3664a6 6 0 0 1 6-6h388a6 6 0 0 1 6 6v458a6 6 0 0 1-6 6h-388a6 6 0 0 1-6-6z" stroke="#000" stroke-width="2"/>
+                    <use xlink:href="#Q" transform="matrix(0.08,0,0,0.08,5820,-3480)"/>
+
+                    <defs>
+                        <path d="M653-1490V0H466v-1314h-10L96-1047v-204l324-239h233" id="R"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#R" id="a"/>
+                        <path d="M154 0v-137l495-537c165-179 249-281 249-418 0-156-121-253-280-253-170 0-278 110-278 278H158c0-264 200-443 465-443 266 0 455 183 455 416 0 161-73 288-336 568L416-179v12h687V0H154" id="S"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#S" id="b"/>
+                        <path d="M200 0l662-1311v-12H98v-167h963v177L400 0H200" id="T"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#T" id="c"/>
+                        <path d="M646 20c-249 0-524-159-524-708 0-524 209-822 547-822 250 0 431 161 467 395H950c-33-129-126-227-281-227-229 0-367 208-367 566h12c80-124 212-198 367-198 255 0 467 205 467 493 0 278-198 501-502 501zm0-167c179 0 318-148 318-334 0-182-133-328-313-328-181 0-322 156-322 330 0 176 134 332 317 332" id="U"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#U" id="d"/>
+                        <path d="M635 20c-292 0-500-160-510-396h192c11 142 145 229 315 229 187 0 323-105 323-260 0-161-125-274-346-274H488v-165h121c174 0 294-100 294-254 0-148-104-245-266-245-152 0-291 85-297 230H157c8-234 222-395 484-395 278 0 448 188 448 400 0 168-95 291-247 336v12c190 31 301 169 301 357 0 244-216 425-508 425" id="V"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#V" id="e"/>
+                        <path d="M120-303v-155l652-1032h231v1020h202v167h-202V0H821v-303H120zm702-167v-782h-12L323-482v12h499" id="W"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#W" id="f"/>
+                        <path d="M626 20c-262 0-458-168-468-396h184c12 133 134 229 284 229 180 0 311-137 311-326 0-192-136-335-323-335-92 0-196 33-255 78l-178-22 88-738h784v167H429l-51 435h8c61-51 160-87 263-87 273 0 474 211 474 499 0 286-210 496-497 496" id="X"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#X" id="g"/>
+                        <g id="h"><use transform="matrix(0.6,0,0,0.6,0,0)" xlink:href="#W"/><use transform="matrix(0.6,0,0,0.6,400,0)" xlink:href="#Y"/></g>
+                        <path d="M646 20c-332 0-524-278-524-764 0-483 194-766 524-766s524 283 524 766c0 485-191 764-524 764zm0-166c218 0 341-220 341-598 0-380-123-601-341-601s-341 222-341 601c0 378 123 598 341 598" id="Y"/>
+                        <path d="M633 20c-303 0-511-173-511-416 0-188 124-348 291-378v-8c-145-37-237-174-237-332 0-227 192-396 457-396 261 0 456 169 456 396 0 158-94 295-235 332v8c162 30 291 190 291 378 0 243-212 416-512 416zm0-165c197 0 322-103 322-261 0-165-138-283-322-283-188 0-324 118-324 283 0 158 123 261 324 261zm0-703c157 0 272-101 272-252 0-149-110-246-272-246-165 0-273 97-273 246 0 151 112 252 273 252" id="Z"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#Z" id="i"/>
+                        <path d="M603 20c-253 0-434-161-469-399h188c31 132 124 231 281 231 227 0 367-207 367-568h-12c-80 122-211 199-367 199-257 0-469-206-469-493 0-278 200-505 506-500 245 4 520 158 520 706 0 527-208 824-545 824zm16-703c181 0 324-157 324-332 0-171-135-328-318-328-180 0-317 148-317 332 0 183 131 328 311 328" id="aa"/>
+                        <use transform="matrix(1,0,0,1,0,0)" xlink:href="#aa" id="j"/>
+                        <g id="k"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#R"/></g>
+                        <g id="l"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#S"/></g>
+                        <g id="m"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#T"/></g>
+                        <g id="n"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#W"/></g>
+                        <g id="o"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#V"/></g>
+                        <g id="p"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#W"/></g>
+                        <g id="q"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#X"/></g>
+                        <g id="r"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#Z"/></g>
+                        <g id="s"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#R"/><use transform="matrix(0.7,0,0,0.7,400,0)" xlink:href="#aa"/></g>
+                        <g id="t"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#Y"/></g>
+                        <g id="u"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#R"/></g>
+                        <g id="v"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#S"/></g>
+                        <g id="w"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#T"/></g>
+                        <g id="x"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#W"/></g>
+                        <g id="y"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#V"/></g>
+                        <g id="z"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#W"/></g>
+                        <g id="A"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#X"/></g>
+                        <g id="B"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#Z"/></g>
+                        <g id="C"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#S"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#aa"/></g>
+                        <g id="D"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#Y"/></g>
+                        <g id="E"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#R"/></g>
+                        <g id="F"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#S"/></g>
+                        <g id="G"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#T"/></g>
+                        <g id="H"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#W"/></g>
+                        <g id="I"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#V"/></g>
+                        <g id="J"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#W"/></g>
+                        <g id="K"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#X"/></g>
+                        <g id="L"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#Z"/></g>
+                        <g id="M"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#T"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#aa"/></g>
+                        <g id="N"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#W"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#Y"/></g>
+                        <g id="O"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#W"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#R"/></g>
+                        <g id="P"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#W"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#S"/></g>
+                        <g id="Q"><use transform="matrix(0.7,0,0,0.7,0,0)" xlink:href="#W"/><use transform="matrix(0.7,0,0,0.7,450,0)" xlink:href="#T"/></g>
+                    </defs>
+                </g>
+            </svg>
+        </div>
+
+        <div class="panel-wrapper">
+            <div class="brand-header">
+                <div class="brand-logo-text">MDM<span>.</span></div>
+                <div class="brand-badge">SYSTEME MAINTENANCE</div>
+            </div>
+            
+            <div id="default-msg" class="placeholder-text">
+                <p>Sélectionnez une station machine sur le plan pour ouvrir son dossier technique et ses schémas de maintenance.</p>
+            </div>
+
+            <div id="dynamic-card" class="machine-card">
+                <span id="card-tag" class="asset-tag">ASSET ID</span>
+                <h1 id="card-title" class="asset-title">Machine Name</h1>
+                <p id="card-subtitle" class="asset-dept">Department Zone</p>
+
+                <div class="machine-photo-container">
+                    <img id="card-photo" src="" alt="Fiche Machine" class="machine-photo">
+                </div>
+                
+                <h3 class="doc-section-title">Documentation Technique</h3>
+                <div class="doc-grid">
+                    <a id="link-electrical" href="#" class="doc-card" target="_blank">
+                        <div class="doc-icon">⚡</div>
+                        <div class="doc-info">
+                            <span class="doc-name">Schéma Électrique & Câblage</span>
+                            <span class="doc-type">Fichier PDF • Armoire Électrique</span>
+                        </div>
+                    </a>
+                    
+                    <a id="link-pneumatic" href="#" class="doc-card" target="_blank">
+                        <div class="doc-icon">⚙️</div>
+                        <div class="doc-info">
+                            <span class="doc-name">Plan Mécanique & Pneumatique</span>
+                            <span class="doc-type">Fichier PDF • Circuits de Puissance</span>
+                        </div>
+                    </a>
+
+                    <a id="link-manual" href="#" class="doc-card" target="_blank">
+                        <div class="doc-icon">📘</div>
+                        <div class="doc-info">
+                            <span class="doc-name">Manuel d'Origine Fabricant</span>
+                            <span class="doc-type">Document PDF • Maintenance Préventive</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const factoryDatabase = {
+            "block-1": { name: "Centre d'Usinage CNC (Portes/Cuisines)", dept: "Zone de Fraisage & Défonçage", code: "CNC-01" },
+            "block-2": { name: "Plaqueuse de Chants Industrielle", dept: "Finition des Chants Panneaux", code: "PC-02" },
+            "block-3": { name: "Scie à Format Assistée - Ligne Principale", dept: "Débit et Dimensionnement", code: "SF-03" },
+            "block-4": { name: "Tourillonneuse Multi-Broches", dept: "Perçage pour Assemblage Structurel", code: "MB-04" },
+            "block-5": { name: "Ponceuse Large Bande - Étalonnage", dept: "Préparation de Surface / Calibrage", code: "PLB-05" },
+            "block-6": { name: "Dégauchisseuse / Raboteuse", dept: "Préparation Bois Massif", code: "DR-06" },
+            "block-7": { name: "Moulurière 4 Faces Automatique", dept: "Usinage Profilés Bois", code: "MO-07" },
+            "block-8": { name: "Cadreuse Hydraulique de Montage", dept: "Ligne d'Assemblage Caissons", code: "CH-08" },
+            "block-9": { name: "Centre d'Insertion de Tourillons", dept: "Perçage et Insertion Express", code: "IT-09" },
+            "block-10": { name: "Toupie de Haute Précision", dept: "Usinage Profils Massifs", code: "TP-10" },
+            "block-11": { name: "Scie Circulaire à Table Coulissante", dept: "Débit Secondaire", code: "SCC-11" },
+            "block-12": { name: "Centre d'Usinage 5 Axes CNC", dept: "Usinage Pièces Complexes", code: "CNC-5X" },
+            "block-13": { name: "Ponceuse de Chants Oscillante", dept: "Finition de Surfaces Latérales", code: "PCO-13" },
+            "block-14": { name: "Plaqueuse de Chants Formes Courbes", dept: "Finition Profils Spéciaux", code: "PCC-14" },
+            "block-15": { name: "Massicot Guillotine à Placage", dept: "Ligne Placage & Plaquage", code: "MGP-15" },
+            "block-16": { name: "Jointeuse de Placage Fil", dept: "Ligne Placage & Plaquage", code: "JP-16" },
+            "block-17": { name: "Presse à Chaud pour Placage", dept: "Ligne Placage & Plaquage", code: "PAC-17" },
+            "block-18": { name: "Station de Ponçage Orbital", dept: "Finition Avant Vernissage", code: "SPO-18" },
+            "block-19": { name: "Ponceuse de Profils / Moulures", dept: "Finition Avant Vernissage", code: "PPM-19" },
+            "block-20": { name: "Scie à Ruban Forte Puissance", dept: "Débit Bois Massif Brut", code: "SR-20" },
+            "block-21": { name: "Broyeur de Déchets de Bois", dept: "Recyclage & Aspiration", code: "BB-21" },
+            "block-22": { name: "Presse à Briquettes de Sciure", dept: "Recyclage & Aspiration", code: "PBR-22" },
+            "block-23": { name: "Cabine de Peinture & Vernissage 1", dept: "Zone de Finition Liquide", code: "CP-23" },
+            "block-24": { name: "Cabine de Peinture & Vernissage 2", dept: "Zone de Finition Liquide", code: "CP-24" },
+            "block-25": { name: "Four de Séchage Tunnel UV", dept: "Zone de Finition Liquide", code: "FS-25" },
+            "block-26": { name: "Compresseur d'Air Centralisé - Unité 1", dept: "Centrale Énergie & Pneumatique", code: "COMP-26" },
+            "block-27": { name: "Compresseur d'Air Centralisé - Unité 2", dept: "Centrale Énergie & Pneumatique", code: "COMP-27" },
+            "block-28": { name: "Sécheur d'Air Réfrigérant", dept: "Centrale Énergie & Pneumatique", code: "SEC-28" },
+            "block-29": { name: "Unité d'Aspiration Cyclonique Centrale", dept: "Recyclage & Aspiration", code: "ASP-29" },
+            "block-30": { name: "Scie Radiale de Tronçonnage", dept: "Débit Bois Massif Brut", code: "SRT-30" },
+            "block-31": { name: "Tenonneuse Double Industrielle", dept: "Usinage d'Assemblage Cadres", code: "TD-31" },
+            "block-32": { name: "Mortaiseuse à Chaîne / Oscillo", dept: "Usinage d'Assemblage Cadres", code: "MO-32" },
+            "block-33": { name: "Perceuse Charnières Automatique", dept: "Zone d'Usinage Quincaillerie", code: "PC-33" },
+            "block-34": { name: "Ligne d'Emballage sous Film Rétractable", dept: "Zone Conditionnement & Logistique", code: "LE-34" },
+            "block-35": { name: "Zone de Stockage Produits Finis", dept: "Logistique & Expédition", code: "STK-35" },
+            "block-36": { name: "Zone de Stockage Matières Premières", dept: "Logistique & Entrée", code: "STK-36" },
+            "block-37": { name: "Affûteuse de Lames CNC", dept: "Atelier d'Affûtage Outillage", code: "AFF-37" },
+            "block-38": { name: "Pont Roulant de Manutention", dept: "Logistique de Charge Lourde", code: "PR-38" },
+            "block-39": { name: "Chariot Élévateur Électrique 1", dept: "Manutention Interne", code: "CH-39" },
+            "block-40": { name: "Chariot Élévateur Électrique 2", dept: "Manutention Interne", code: "CH-40" },
+            "block-41": { name: "Table Élévatrice Hydraulique", dept: "Poste de Chargement Machine", code: "TE-41" },
+            "block-42": { name: "Système de Retour de Panneaux", dept: "Automatisation Plaqueuse", code: "SR-42" },
+            "block-43": { name: "Générateur Électrique de Secours", dept: "Centrale Énergie & Pneumatique", code: "GEN-43" }
+        };
+
+        document.querySelectorAll('svg path[stroke="#000"][stroke-width="2"]').forEach(machineBlock => {
+            machineBlock.addEventListener('click', function() {
+                const blockId = this.getAttribute('id');
+                const machineData = factoryDatabase[blockId];
+
+                if (machineData) {
+                    document.querySelectorAll('.selected-machine').forEach(el => {
+                        el.classList.remove('selected-machine');
+                    });
+                    this.classList.add('selected-machine');
+
+                    document.getElementById('card-tag').innerText = `ASSET ID: ${machineData.code}`;
+                    document.getElementById('card-title').innerText = machineData.name;
+                    document.getElementById('card-subtitle').innerText = machineData.dept;
+
+                    const photoImg = document.getElementById('card-photo');
+                    photoImg.src = `images/assets/${machineData.code}.jpg`;
+                    photoImg.onerror = function() {
+                        this.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&auto=format&fit=crop&q=60"; 
+                    };
+
+                    document.getElementById('link-electrical').href = `docs/electrical/${machineData.code}_elec.pdf`;
+                    document.getElementById('link-pneumatic').href = `docs/pneumatic/${machineData.code}_pneu.pdf`;
+                    document.getElementById('link-manual').href = `docs/manuals/${machineData.code}_manual.pdf`;
+
+                    document.getElementById('default-msg').style.display = 'none';
+                    const dynamicCard = document.getElementById('dynamic-card');
+                    dynamicCard.className = 'machine-card active';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
